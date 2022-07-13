@@ -1,0 +1,136 @@
+{{set . "title" "Home"}}
+{{template "header.html" .}}
+
+<h5 class="text-center">Relevés de température des cours d'eau du département de la Gironde</h5>
+<div class="container">
+    <input id="data" type="text" hidden="hidden" value="{{.data_encode}}">
+    <center>
+        <div style="width: 60% !important;">
+            <canvas id="myGraph" width="150" height="100"></canvas>
+        </div>
+    </center>
+    <script>
+
+        function sortData(datas) {
+            let res = {}
+            let res_count = {}
+
+            // iterate in datas
+            for(let data of datas["data"]) {
+
+                // get month number by date
+                let index_month = (new Date(data["date_mesure_temp"])).getMonth()+1
+                // check if isset month index if that incremente value temperature of month
+                if(res[index_month] !== undefined) {
+                    res[index_month]+=data["resultat"]
+                    //incremente number of temperature by same month
+                    res_count[index_month]+=1;
+                } else {
+                    // else create new index by month number
+                    res[index_month] = data["resultat"]
+                    // init new month count to 1
+                    res_count[index_month] = 1;
+                }
+            }
+
+            // get array of isset month
+            let count_keys = Object.keys(res_count) // [5, 4]
+            // iterate in array of month and divide value max   by total temperature number
+            for(let c of count_keys) {
+                res[c] = res[c]/res_count[c]
+            }
+
+            return res
+        }
+
+        function create_data(res) {
+            let datas_res = []
+            for(let i = 0; i < 12; i++) {
+                for(let r of Object.keys(res)) {
+                    if(i === parseInt(r)-1) {
+                        datas_res[i] = res[r]
+                        break
+                    } else {
+                        datas_res[i] = 0
+                    }
+                }
+
+                if(i !== 0) {
+                    if(datas_res[i] === 0){
+                        let j = i
+                        while(datas_res[j] === 0 && j >= 0)
+                            j--
+                        if(datas_res[j] !== undefined)
+                            datas_res[i] = datas_res[j]
+                        else
+                            datas_res[i] = 0
+                    }
+                }
+            }
+            return datas_res
+        }
+
+        let datas = JSON.parse(document.getElementById("data").value)
+        let res = sortData(datas)
+        let data_res = create_data(res)
+        const labels = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"];
+        const data = {
+            labels: labels,
+            datasets: [{
+                label: "Moyenne de L'evolution de la temperature d'eau en gironde",
+                data: data_res,
+                fill: false,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        };
+        const stackedLine = new Chart(document.getElementById("myGraph"), {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        stacked: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (item) =>
+                                `${item.dataset.label}: ${item.formattedValue} °C`,
+                        },
+                    },
+                },
+            }
+        });
+
+    </script>
+    <div class="row">
+        {{range .data}}
+        <div class="col-lg-3 col-md-3">
+            <div class="card text-dark bg-info mb-3" style="margin-top: 20px;">
+                <div class="card-body">
+                    <p>Code station : {{.CodeStation}}</p>
+                    <p>Code commune : {{.CodeCommune}}</p>
+                    <p>Température : {{.Resultat}} °C</p>
+                    <p>Date de mesure : {{.DateMesureTemp}}</p>
+                    <p>Heure de mesure : {{.HeureMesureTemp}}</p>
+                </div>
+            </div>
+        </div>
+        {{end }}
+    </div>
+</div>
+
+
+<div class="container">
+    <div class="row">
+        <div class="span6">
+            {{template "flash.html" .}}
+        </div>
+    </div>
+</div>
+
+{{template "footer.html" .}}
